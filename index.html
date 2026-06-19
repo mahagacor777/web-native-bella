@@ -1,4 +1,7 @@
+Import IPython
 
+# --- RE-ARCHITECTURE: BESTY REMOVED MUSIC EDITION (COMPLETE CODE) ---
+raw_html = """
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -299,6 +302,7 @@
 </div>
 
 <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyer3u_eSR3bXSCtSVxKehYeKT6eR0E2dh0ly8Gjc_4vZVVEV28EeRhLLZwFNSeBVMF/exec";
     // System database simulation
     if(!localStorage.getItem('BESTY_DB')) { localStorage.setItem('BESTY_DB', JSON.stringify([])); }
 
@@ -366,28 +370,71 @@
         speakOfficial(textToSay);
     }
 
-    function submitJournalToDatabase() {
-        const text = document.getElementById('storyInput').value.trim();
-        if(!text) { alert("Tuliskan curhatan isi pikiranmu terlebih dahulu!"); return; }
-        const generatedTicketID = `#BESTY-${Math.floor(1000 + Math.random() * 9000)}`;
-        document.getElementById('generatedTicketDisplay').innerText = generatedTicketID;
-        document.getElementById('ticketConfirmCard').style.display = "block";
-        document.getElementById('seaOverlayText').style.display = "none";
-        document.getElementById('seaOverlay').style.display = 'flex';
-    }
-
+    
     function acknowledgeAndReleaseLock() {
         document.getElementById('seaOverlay').style.display = 'none';
         document.getElementById('storyInput').value = "";
     }
+    
+    function submitJournalToDatabase() {
+    const text = document.getElementById('storyInput').value.trim();
+    if(!text) { alert("Tuliskan curhatan isi pikiranmu terlebih dahulu!"); return; }
+    
+    // Generate Tiket Unik
+    const generatedTicketID = `#BESTY-${Math.floor(1000 + Math.random() * 9000)}`;
+    
+    // Ubah tampilan loading visual lautan dihanyutkan
+    document.getElementById('seaOverlayText').style.display = "block";
+    document.getElementById('seaOverlayText').innerText = "Menghanyutkan Beban Jiwamu ke Database...";
+    document.getElementById('ticketConfirmCard').style.display = "none";
+    document.getElementById('seaOverlay').style.display = 'flex';
 
-    function searchTicketReply() {
-        const searchKey = document.getElementById('ticketSearchInput').value.trim().toUpperCase();
-        const resultBox = document.getElementById('ticketResultBox');
-        if(!searchKey) { alert("Masukkan nomor tiket Anda!"); return; }
-        resultBox.style.display = "block";
-        resultBox.innerHTML = `<b>Balasan Konselor Besty:</b><br><p>"Halo sayang, terima kasih sudah bertahan. Ingatlah bahwa awan mendung tidak selamanya menutupi langit indahmu. Kamu aman di sini."</p>`;
-    }
+    // Kirim data secara asinkronus ke Google Sheets
+    fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors", // Mode no-cors digunakan untuk bypass restriksi web statis biasa
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ticketID: generatedTicketID,
+            story: text
+        })
+    })
+    .then(() => {
+        // Karena no-cors, kita asumsikan sukses jika tidak ada error network
+        document.getElementById('generatedTicketDisplay').innerText = generatedTicketID;
+        document.getElementById('ticketConfirmCard').style.display = "block";
+        document.getElementById('seaOverlayText').style.display = "none";
+    })
+    .catch(err => {
+        alert("Gagal menghanyutkan cerita karena masalah koneksi.");
+        document.getElementById('seaOverlay').style.display = 'none';
+        console.error(err);
+    });
+}
+
+   function searchTicketReply() {
+    const searchKey = document.getElementById('ticketSearchInput').value.trim().toUpperCase();
+    const resultBox = document.getElementById('ticketResultBox');
+    if(!searchKey) { alert("Masukkan nomor tiket Anda!"); return; }
+    
+    resultBox.style.display = "block";
+    resultBox.innerHTML = `<i>Sedang mencari surat balasan di lautan...</i>`;
+    
+    // Ambil data balasan dari Google Sheets berdasarkan Ticket ID
+    fetch(`${APPS_SCRIPT_URL}?ticketID=${encodeURIComponent(searchKey)}`)
+    .then(response => response.json())
+    .then(data => {
+        if(data.status === "found") {
+            resultBox.innerHTML = `<b>Balasan Konselor Besty untuk ${searchKey}:</b><br><p>"${data.feedback}"</p>`;
+        } else {
+            resultBox.innerHTML = `<b style="color:#e74c3c;">Tiket Tidak Ditemukan!</b><br><p>Pastikan format nomor tiket benar (Contoh: #BESTY-1234) atau mungkin Besty belum sempat membaca suratmu.</p>`;
+        }
+    })
+    .catch(err => {
+        resultBox.innerHTML = `<b style="color:#e74c3c;">Gagal memuat balasan.</b>`;
+        console.error(err);
+    });
+}
 
     // ========================================================
     // DYNAMIC RESPONSIBLE ANALYSIS ENGINE PADA TOPLES KETAKUTAN
